@@ -18,8 +18,12 @@ public class VKAuthPackage implements ReactPackage {
         List<NativeModule> modules = new ArrayList<>();
 
         modules.add(new VKAuthModule(reactContext));
-        modules.add(new VKShareModule(reactContext));
         return modules;
+    }
+
+    @Override
+    public List<Class<? extends JavaScriptModule>> createJSModules() {
+        return Collections.emptyList();
     }
 
     @Override

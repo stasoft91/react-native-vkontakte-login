@@ -1,18 +1,6 @@
 #import "VkontakteManager.h"
-
-#if __has_include(<VKSdkFramework/VKSdkFramework.h>)
-#import <VKSdkFramework/VKSdkFramework.h>
-#else
 #import "VKSdk.h"
-#endif
-
-#if __has_include(<React/RCTUtils.h>)
-#import <React/RCTUtils.h>
-#elif __has_include("RCTUtils.h")
-#import "RCTUtils.h"
-#else
-#import "React/RCTUtils.h" // Required when used as a Pod in a Swift project
-#endif
+#import <RCTUtils.h>
 
 #ifdef DEBUG
 #define DMLog(...) NSLog(@"[VKLogin] %s %@", __PRETTY_FUNCTION__, [NSString stringWithFormat:__VA_ARGS__])
@@ -54,11 +42,6 @@ RCT_EXPORT_METHOD(initialize: (nonnull NSNumber *) appId) {
 
 RCT_EXPORT_METHOD(login: (NSArray *) scope resolver: (RCTPromiseResolveBlock) resolve rejecter: (RCTPromiseRejectBlock) reject) {
   DMLog(@"Login with scope %@", scope);
-  if (![VKSdk initialized]){
-    reject(RCTErrorUnspecified, nil, RCTErrorWithMessage(@"VK SDK must be initialized first"));
-    return;
-  }
-
   self->loginResolver = resolve;
   self->loginRejector = reject;
   [VKSdk wakeUpSession:scope completeBlock:^(VKAuthorizationState state, NSError *error) {
@@ -83,30 +66,17 @@ RCT_EXPORT_METHOD(login: (NSArray *) scope resolver: (RCTPromiseResolveBlock) re
   }];
 };
 
-RCT_EXPORT_METHOD(isLoggedIn: (RCTPromiseResolveBlock) resolve rejecter: (RCTPromiseRejectBlock) reject) {
-  if ([VKSdk initialized]){
-  resolve([NSNumber numberWithBool:[VKSdk isLoggedIn]]);
-}
-  else {
-    reject(RCTErrorUnspecified, nil, RCTErrorWithMessage(@"VK SDK must be initialized first"));
-  }
-}
-
 RCT_REMAP_METHOD(logout, resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTPromiseRejectBlock)reject){
   DMLog(@"Logout");
-  if (![VKSdk initialized]){
-    reject(RCTErrorUnspecified, nil, RCTErrorWithMessage(@"VK SDK must be initialized first"));
-    return;
-  }
   [VKSdk forceLogout];
   resolve(nil);
 };
 
 - (void)vkSdkAccessAuthorizationFinishedWithResult:(VKAuthorizationResult *)result {
   DMLog(@"Authorization result is %@", result);
-  if (result.error && self->loginRejector != nil) {
-    self->loginRejector(RCTErrorUnspecified, nil, RCTErrorWithMessage(result.error.localizedDescription));
-  } else if (result.token && self->loginResolver != nil) {
+  if (result.error) {
+    self->loginRejector(RCTErrorUnspecified, nil, result.error);
+  } else if (result.token) {
     NSDictionary *loginData = [self getResponse];
     self->loginResolver(loginData);
   }
@@ -148,10 +118,6 @@ RCT_REMAP_METHOD(logout, resolver:(RCTPromiseResolveBlock)resolve rejecter:(RCTP
   else {
     return [NSNull null];
   }
-}
-
-+ (BOOL)requiresMainQueueSetup {
-  return YES;
 }
 
 @end
